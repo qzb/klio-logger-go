@@ -1,7 +1,11 @@
 package logger
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
+	"os"
+	"strings"
 )
 
 // Level type.
@@ -22,76 +26,194 @@ const (
 	DebugLevel Level = "debug"
 	// SpamLevel level. Give me EVERYTHING.
 	SpamLevel Level = "spam"
+	// DefaultLevel is an alias for "info" level.
+	DefaultLevel = InfoLevel
 )
 
+var (
+	standardLogger = New(os.Stdout)
+	errorLogger    = New(os.Stderr).WithLevel(ErrorLevel)
+	levelsMap      = map[string]Level{
+		"fatal":   FatalLevel,
+		"error":   ErrorLevel,
+		"warn":    WarnLevel,
+		"info":    InfoLevel,
+		"verbose": VerboseLevel,
+		"debug":   DebugLevel,
+		"spam":    SpamLevel,
+	}
+)
+
+// ParseLevel converts level name to Level. It is case insensitive, returns DefaultLevel if value cannot be converted.
+func ParseLevel(s string) (level Level, ok bool) {
+	level, ok = levelsMap[strings.ToLower(s)]
+	if !ok {
+		level = DefaultLevel
+	}
+	return level, ok
+}
+
 // Logger.
-type Logger struct{}
+type Logger struct {
+	output     io.Writer
+	tags       []string
+	level      Level
+	linePrefix string
+}
 
 // New creates new instance of Logger.
-func New(output *io.Writer) *Logger
+func New(output io.Writer) *Logger {
+	l := &Logger{
+		output: output,
+		tags:   []string{},
+		level:  DefaultLevel,
+	}
+
+	l.updateLinePrefix()
+
+	return l
+}
+
+func (l *Logger) updateLinePrefix() {
+	level, err := json.Marshal(l.level)
+	if err != nil {
+		level = []byte("\"" + DefaultLevel + "\"")
+	}
+	tags, err := json.Marshal(l.tags)
+	if err != nil || string(tags) == "null" {
+		tags = []byte("[]")
+	}
+	l.linePrefix = fmt.Sprintf(
+		"\033_klio_log_level %s\033\\\033_klio_tags %s\033\\", level, tags,
+	)
+}
 
 // Tags returns tags used by a logger. ags are prepended to each line produced by a logger.
-func (l *Logger) Tags() []string
+func (l *Logger) Tags() []string {
+	r := make([]string, len(l.tags))
+	copy(r, l.tags)
+	return r
+}
 
 // Level returns log level used by a logger.
-func (l *Logger) Level() Level
+func (l *Logger) Level() Level {
+	return l.level
+}
+
+// Output returns writer used by a logger.
+func (l *Logger) Output() io.Writer {
+	return l.output
+}
+
+// SetOutput changes Writer used to print logs. In contrast to other methods it modifies logger instance instead creating a new one.
+func (l *Logger) SetOutput(output io.Writer) {
+	l.output = output
+}
 
 // WithLevel creates new logger instance logging at specified level.
-func (l *Logger) WithLevel(Level) *Logger
+func (l *Logger) WithLevel(level Level) *Logger {
+	n := *l
+	n.level = level
+	n.updateLinePrefix()
+	return &n
+}
 
 // WithTags creates new logger instance with specified tags. Tags are prepended to each line produced by a logger.
-func (l *Logger) WithTags(tags ...string) *Logger
+func (l *Logger) WithTags(tags ...string) *Logger {
+	n := *l
+	n.tags = tags
+	n.updateLinePrefix()
+	return &n
+}
 
 // Printf writes log line. Arguments are handled in the manner of fmt.Print.
-func (l *Logger) Print(v ...interface{}) *Logger
+func (l *Logger) Print(v ...interface{}) *Logger {
+	line := l.linePrefix + fmt.Sprint(v...) + "\033_klio_reset\033\\\n"
+	l.output.Write([]byte(line))
+	return l
+}
 
 // Printf writes log line. Arguments are handled in the manner of fmt.Printf.
-func (l *Logger) Printf(format string, v ...interface{}) *Logger
+func (l *Logger) Printf(format string, v ...interface{}) *Logger {
+	return l.Print(fmt.Sprintf(format, v...))
+}
 
 // StandardLogger returns logger instance writing to the stdout.
-func StandardLogger() *Logger
+func StandardLogger() *Logger {
+	return standardLogger
+}
 
 // ErrorLogger returns logger instance writing to the stderr.
-func ErrorLogger() *Logger
+func ErrorLogger() *Logger {
+	return errorLogger
+}
 
 // Spam writes a message at level Spam on the standard logger. Arguments are handled in the manner of fmt.Print.
-func Spam(v ...interface{}) {}
+func Spam(v ...interface{}) {
+	standardLogger.WithLevel(SpamLevel).Print(v...)
+}
 
 // Debug writes a message at level Debug on the standard logger. Arguments are handled in the manner of fmt.Print.
-func Debug(v ...interface{}) {}
+func Debug(v ...interface{}) {
+	standardLogger.WithLevel(DebugLevel).Print(v...)
+}
 
 // Verbose writes a message at level Verbose on the standard logger. Arguments are handled in the manner of fmt.Print.
-func Verbose(v ...interface{}) {}
+func Verbose(v ...interface{}) {
+	standardLogger.WithLevel(VerboseLevel).Print(v...)
+}
 
 // Info writes a message at level Info on the standard logger. Arguments are handled in the manner of fmt.Print.
-func Info(v ...interface{}) {}
+func Info(v ...interface{}) {
+	standardLogger.WithLevel(InfoLevel).Print(v...)
+}
 
 // Warn writes a message at level Warn on the standard logger. Arguments are handled in the manner of fmt.Print.
-func Warn(v ...interface{}) {}
+func Warn(v ...interface{}) {
+	standardLogger.WithLevel(WarnLevel).Print(v...)
+}
 
 // Error writes a message at level Error on the standard logger. Arguments are handled in the manner of fmt.Print.
-func Error(v ...interface{}) {}
+func Error(v ...interface{}) {
+	standardLogger.WithLevel(ErrorLevel).Print(v...)
+}
 
 // Fatal writes a message at level Fatal on the standard logger. Arguments are handled in the manner of fmt.Print.
-func Fatal(v ...interface{}) {}
+func Fatal(v ...interface{}) {
+	standardLogger.WithLevel(FatalLevel).Print(v...)
+}
 
 // Spamf writes a message at level Spam on the standard logger. Arguments are handled in the manner of fmt.Printf.
-func Spamf(format string, v ...interface{}) {}
+func Spamf(format string, v ...interface{}) {
+	standardLogger.WithLevel(SpamLevel).Printf(format, v...)
+}
 
 // Debugf writes a message at level Debug on the standard logger. Arguments are handled in the manner of fmt.Printf.
-func Debugf(format string, v ...interface{}) {}
+func Debugf(format string, v ...interface{}) {
+	standardLogger.WithLevel(DebugLevel).Printf(format, v...)
+}
 
 // Verbosef writes a message at level Verbose on the standard logger. Arguments are handled in the manner of fmt.Printf.
-func Verbosef(format string, v ...interface{}) {}
+func Verbosef(format string, v ...interface{}) {
+	standardLogger.WithLevel(VerboseLevel).Printf(format, v...)
+}
 
 // Infof writes a message at level Info on the standard logger. Arguments are handled in the manner of fmt.Printf.
-func Infof(format string, v ...interface{}) {}
+func Infof(format string, v ...interface{}) {
+	standardLogger.WithLevel(InfoLevel).Printf(format, v...)
+}
 
 // Warnf writes a message at level Warn on the standard logger. Arguments are handled in the manner of fmt.Printf.
-func Warnf(format string, v ...interface{}) {}
+func Warnf(format string, v ...interface{}) {
+	standardLogger.WithLevel(WarnLevel).Printf(format, v...)
+}
 
 // Errorf writes a message at level Error on the standard logger. Arguments are handled in the manner of fmt.Printf.
-func Errorf(format string, v ...interface{}) {}
+func Errorf(format string, v ...interface{}) {
+	standardLogger.WithLevel(ErrorLevel).Printf(format, v...)
+}
 
 // Fatalf writes a message at level Fatal on the standard logger. Arguments are handled in the manner of fmt.Printf.
-func Fatalf(format string, v ...interface{}) {}
+func Fatalf(format string, v ...interface{}) {
+	standardLogger.WithLevel(FatalLevel).Printf(format, v...)
+}
