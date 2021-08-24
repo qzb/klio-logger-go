@@ -1,3 +1,12 @@
+// This logger is meant to be used for building (klio) https://github.com/g2a-com/klio commands.
+// It writes logs decorated with control sequences (interpreted by Klio) https://github.com/g2a-com/klio/blob/main/docs/output-handling.md.
+//
+//   import (
+//     log "github.com/g2a-com/klio-logger-go"
+//   )
+//
+//   log.Info("hello world")                                                     // [INFO] hello world
+//   log.StandardLogger().WithLevel("spam").WithTags("foo", "bar").Print("tags") // [SPAM][FOO][BAR] tags
 package logger
 
 import (
