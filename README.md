@@ -1,6 +1,6 @@
 # Klio logger for golang
 
-This logger is meant to be used for building [klio](https://github.com/g2a-com/klio) commands (). It
+This logger is meant to be used for building [Klio](https://github.com/g2a-com/klio) commands. It
 writes logs decorated with
 [control sequences interpreted by Klio](https://github.com/g2a-com/klio/blob/main/docs/output-handling.md).
 It doesn't filter or modify messages besides that.
@@ -13,7 +13,7 @@ go get github.com/g2a-com/klio-logger-go
 
 # Quick Start
 
-This logger comes with set of
+If you don't want to use tags, or print to stderr use package-level functions:
 
 ```golang
 package main
@@ -28,9 +28,7 @@ func main() {
 }
 ```
 
-For more complex cases, you may need to create custom logger. Since klio
-
-### Custom
+In more complex cases, you may need to create custom logger:
 
 ```golang
 package main
@@ -48,3 +46,5 @@ func main() {
 	l.Printf("hello %s", "world")     // Klio: [VERBOSE][FOO][BAR] hello world
 }
 ```
+
+See the [documentation](https://pkg.go.dev/github.com/g2a-com/klio-logger-go) for more details.
