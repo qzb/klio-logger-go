@@ -1,12 +1,7 @@
-// This logger is meant to be used for building (klio) https://github.com/g2a-com/klio commands.
-// It writes logs decorated with control sequences (interpreted by Klio) https://github.com/g2a-com/klio/blob/main/docs/output-handling.md.
-//
-//   import (
-//     log "github.com/g2a-com/klio-logger-go"
-//   )
-//
-//   log.Info("hello world")                                                     // [INFO] hello world
-//   log.StandardLogger().WithLevel("spam").WithTags("foo", "bar").Print("tags") // [SPAM][FOO][BAR] tags
+// This logger is meant to be used for building Klio commands (https://github.com/g2a-com/klio).
+// It writes logs decorated with control sequences interpreted by Klio (https://github.com/g2a-com/klio/blob/main/docs/output-handling.md).
+// It doesn't filter or modify messages besides that.
+
 package logger
 
 import (
@@ -43,13 +38,13 @@ var (
 	standardLogger = New(os.Stdout)
 	errorLogger    = New(os.Stderr).WithLevel(ErrorLevel)
 	levelsMap      = map[string]Level{
-		"fatal":   FatalLevel,
-		"error":   ErrorLevel,
-		"warn":    WarnLevel,
-		"info":    InfoLevel,
-		"verbose": VerboseLevel,
-		"debug":   DebugLevel,
-		"spam":    SpamLevel,
+		string(FatalLevel):   FatalLevel,
+		string(ErrorLevel):   ErrorLevel,
+		string(WarnLevel):    WarnLevel,
+		string(InfoLevel):    InfoLevel,
+		string(VerboseLevel): VerboseLevel,
+		string(DebugLevel):   DebugLevel,
+		string(SpamLevel):    SpamLevel,
 	}
 )
 
@@ -97,7 +92,7 @@ func (l *Logger) updateLinePrefix() {
 	)
 }
 
-// Tags returns tags used by a logger. ags are prepended to each line produced by a logger.
+// Tags returns tags used by a logger. Tags are prepended to each line produced by a logger.
 func (l *Logger) Tags() []string {
 	r := make([]string, len(l.tags))
 	copy(r, l.tags)
@@ -147,12 +142,12 @@ func (l *Logger) Printf(format string, v ...interface{}) *Logger {
 	return l.Print(fmt.Sprintf(format, v...))
 }
 
-// StandardLogger returns logger instance writing to the stdout.
+// StandardLogger returns logger instance writing to the stdout. It writes using "info" level by default.
 func StandardLogger() *Logger {
 	return standardLogger
 }
 
-// ErrorLogger returns logger instance writing to the stderr.
+// ErrorLogger returns logger instance writing to the stderr. It writes using "error" level by default.
 func ErrorLogger() *Logger {
 	return errorLogger
 }
