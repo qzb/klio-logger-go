@@ -14,45 +14,51 @@ func TestParseLevel(t *testing.T) {
 	var l log.Level
 	var ok bool
 
-	l, ok = log.ParseLevel("spam")
-	assert.Equal(t, log.SpamLevel, l)
-	assert.Equal(t, true, ok)
+	t.Run("parse valid levels", func(t *testing.T) {
+		l, ok = log.ParseLevel("spam")
+		assert.Equal(t, log.SpamLevel, l)
+		assert.Equal(t, true, ok)
 
-	l, ok = log.ParseLevel("debug")
-	assert.Equal(t, log.DebugLevel, l)
-	assert.Equal(t, true, ok)
+		l, ok = log.ParseLevel("debug")
+		assert.Equal(t, log.DebugLevel, l)
+		assert.Equal(t, true, ok)
 
-	l, ok = log.ParseLevel("verbose")
-	assert.Equal(t, log.VerboseLevel, l)
-	assert.Equal(t, true, ok)
+		l, ok = log.ParseLevel("verbose")
+		assert.Equal(t, log.VerboseLevel, l)
+		assert.Equal(t, true, ok)
 
-	l, ok = log.ParseLevel("info")
-	assert.Equal(t, log.InfoLevel, l)
-	assert.Equal(t, true, ok)
+		l, ok = log.ParseLevel("info")
+		assert.Equal(t, log.InfoLevel, l)
+		assert.Equal(t, true, ok)
 
-	l, ok = log.ParseLevel("warn")
-	assert.Equal(t, log.WarnLevel, l)
-	assert.Equal(t, true, ok)
+		l, ok = log.ParseLevel("warn")
+		assert.Equal(t, log.WarnLevel, l)
+		assert.Equal(t, true, ok)
 
-	l, ok = log.ParseLevel("error")
-	assert.Equal(t, log.ErrorLevel, l)
-	assert.Equal(t, true, ok)
+		l, ok = log.ParseLevel("error")
+		assert.Equal(t, log.ErrorLevel, l)
+		assert.Equal(t, true, ok)
 
-	l, ok = log.ParseLevel("fatal")
-	assert.Equal(t, log.FatalLevel, l)
-	assert.Equal(t, true, ok)
+		l, ok = log.ParseLevel("fatal")
+		assert.Equal(t, log.FatalLevel, l)
+		assert.Equal(t, true, ok)
+	})
 
-	l, ok = log.ParseLevel("SPAM")
-	assert.Equal(t, log.SpamLevel, l)
-	assert.Equal(t, true, ok)
+	t.Run("parse levels with wrong letter case", func(t *testing.T) {
+		l, ok = log.ParseLevel("SpAm")
+		assert.Equal(t, log.SpamLevel, l)
+		assert.Equal(t, true, ok)
+	})
 
-	l, ok = log.ParseLevel("unknown")
-	assert.Equal(t, log.DefaultLevel, l)
-	assert.Equal(t, false, ok)
+	t.Run("return DefaulLevel for invalid levels", func(t *testing.T) {
+		l, ok = log.ParseLevel("unknown")
+		assert.Equal(t, log.DefaultLevel, l)
+		assert.Equal(t, false, ok)
 
-	l, ok = log.ParseLevel("  spam")
-	assert.Equal(t, log.DefaultLevel, l)
-	assert.Equal(t, false, ok)
+		l, ok = log.ParseLevel("  spam")
+		assert.Equal(t, log.DefaultLevel, l)
+		assert.Equal(t, false, ok)
+	})
 }
 
 func TestNew(t *testing.T) {
@@ -88,23 +94,29 @@ func TestWithTags(t *testing.T) {
 }
 
 func TestPrint(t *testing.T) {
-	var b bytes.Buffer
+	t.Run("print message with default level and no tags", func(t *testing.T) {
+		var b bytes.Buffer
+		log.New(&b).Print("foo")
+		assert.Equal(t, "\033_klio_log_level \"info\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
 
-	b.Reset()
-	log.New(&b).Print("foo")
-	assert.Equal(t, "\033_klio_log_level \"info\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	t.Run("print message with specified level and tags", func(t *testing.T) {
+		var b bytes.Buffer
+		log.New(&b).WithTags("a", "b", "c").WithLevel(log.SpamLevel).Print("foo")
+		assert.Equal(t, "\033_klio_log_level \"spam\"\033\\\033_klio_tags [\"a\",\"b\",\"c\"]\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
 
-	b.Reset()
-	log.New(&b).WithTags("a", "b", "c").WithLevel(log.SpamLevel).Print("foo")
-	assert.Equal(t, "\033_klio_log_level \"spam\"\033\\\033_klio_tags [\"a\",\"b\",\"c\"]\033\\foo\033_klio_reset\033\\\n", b.String())
+	t.Run("ignore overwriten level and tags", func(t *testing.T) {
+		var b bytes.Buffer
+		log.New(&b).WithTags("a", "b", "c").WithLevel(log.SpamLevel).WithLevel(log.DefaultLevel).WithTags().Print("foo")
+		assert.Equal(t, "\033_klio_log_level \"info\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
 
-	b.Reset()
-	log.New(&b).WithTags("a", "b", "c").WithLevel(log.SpamLevel).WithLevel(log.DefaultLevel).WithTags().Print("foo")
-	assert.Equal(t, "\033_klio_log_level \"info\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-
-	b.Reset()
-	log.New(&b).WithTags("\033\\").WithLevel(log.Level("\"")).Print("foo")
-	assert.Equal(t, "\033_klio_log_level \"\\\"\"\033\\\033_klio_tags [\"\\u001b\\\\\"]\033\\foo\033_klio_reset\033\\\n", b.String())
+	t.Run("properly escape special characters in level and tags", func(t *testing.T) {
+		var b bytes.Buffer
+		log.New(&b).WithTags("\033\\").WithLevel(log.Level("\"")).Print("foo")
+		assert.Equal(t, "\033_klio_log_level \"\\\"\"\033\\\033_klio_tags [\"\\u001b\\\\\"]\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
 }
 
 func TestPrintf(t *testing.T) {
@@ -149,46 +161,87 @@ func TestConvenienceFunctions(t *testing.T) {
 	log.StandardLogger().SetOutput(&b)
 	defer log.StandardLogger().SetOutput(os.Stdout)
 
-	b.Reset()
-	log.Spam("foo")
-	assert.Equal(t, "\033_klio_log_level \"spam\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-	b.Reset()
-	log.Debug("foo")
-	assert.Equal(t, "\033_klio_log_level \"debug\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-	b.Reset()
-	log.Verbose("foo")
-	assert.Equal(t, "\033_klio_log_level \"verbose\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-	b.Reset()
-	log.Info("foo")
-	assert.Equal(t, "\033_klio_log_level \"info\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-	b.Reset()
-	log.Warn("foo")
-	assert.Equal(t, "\033_klio_log_level \"warn\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-	b.Reset()
-	log.Error("foo")
-	assert.Equal(t, "\033_klio_log_level \"error\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-	b.Reset()
-	log.Fatal("foo")
-	assert.Equal(t, "\033_klio_log_level \"fatal\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-	b.Reset()
-	log.Spamf("%s", "foo")
-	assert.Equal(t, "\033_klio_log_level \"spam\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-	b.Reset()
-	log.Debugf("%s", "foo")
-	assert.Equal(t, "\033_klio_log_level \"debug\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-	b.Reset()
-	log.Verbosef("%s", "foo")
-	assert.Equal(t, "\033_klio_log_level \"verbose\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-	b.Reset()
-	log.Infof("%s", "foo")
-	assert.Equal(t, "\033_klio_log_level \"info\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-	b.Reset()
-	log.Warnf("%s", "foo")
-	assert.Equal(t, "\033_klio_log_level \"warn\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-	b.Reset()
-	log.Errorf("%s", "foo")
-	assert.Equal(t, "\033_klio_log_level \"error\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
-	b.Reset()
-	log.Fatalf("%s", "foo")
-	assert.Equal(t, "\033_klio_log_level \"fatal\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	t.Run("Spam", func(t *testing.T) {
+		b.Reset()
+		log.Spam("foo")
+		assert.Equal(t, "\033_klio_log_level \"spam\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
+
+	t.Run("Debug", func(t *testing.T) {
+		b.Reset()
+		log.Debug("foo")
+		assert.Equal(t, "\033_klio_log_level \"debug\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
+
+	t.Run("Verbose", func(t *testing.T) {
+		b.Reset()
+		log.Verbose("foo")
+		assert.Equal(t, "\033_klio_log_level \"verbose\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
+
+	t.Run("Info", func(t *testing.T) {
+		b.Reset()
+		log.Info("foo")
+		assert.Equal(t, "\033_klio_log_level \"info\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
+
+	t.Run("Warn", func(t *testing.T) {
+		b.Reset()
+		log.Warn("foo")
+		assert.Equal(t, "\033_klio_log_level \"warn\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		b.Reset()
+		log.Error("foo")
+		assert.Equal(t, "\033_klio_log_level \"error\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
+
+	t.Run("Fatal", func(t *testing.T) {
+		b.Reset()
+		log.Fatal("foo")
+		assert.Equal(t, "\033_klio_log_level \"fatal\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
+
+	t.Run("Spamf", func(t *testing.T) {
+		b.Reset()
+		log.Spamf("%s", "foo")
+		assert.Equal(t, "\033_klio_log_level \"spam\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
+
+	t.Run("Debugf", func(t *testing.T) {
+		b.Reset()
+		log.Debugf("%s", "foo")
+		assert.Equal(t, "\033_klio_log_level \"debug\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
+
+	t.Run("Verbosef", func(t *testing.T) {
+		b.Reset()
+		log.Verbosef("%s", "foo")
+		assert.Equal(t, "\033_klio_log_level \"verbose\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
+
+	t.Run("Infof", func(t *testing.T) {
+		b.Reset()
+		log.Infof("%s", "foo")
+		assert.Equal(t, "\033_klio_log_level \"info\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
+
+	t.Run("Warnf", func(t *testing.T) {
+		b.Reset()
+		log.Warnf("%s", "foo")
+		assert.Equal(t, "\033_klio_log_level \"warn\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
+
+	t.Run("Errorf", func(t *testing.T) {
+		b.Reset()
+		log.Errorf("%s", "foo")
+		assert.Equal(t, "\033_klio_log_level \"error\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
+
+	t.Run("Fatalf", func(t *testing.T) {
+		b.Reset()
+		log.Fatalf("%s", "foo")
+		assert.Equal(t, "\033_klio_log_level \"fatal\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n", b.String())
+	})
 }
