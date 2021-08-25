@@ -10,6 +10,35 @@ import (
 	log "github.com/g2a-com/klio-logger-go"
 )
 
+func Example_basic() {
+	log.Info("hello world")                  // Klio: [INFO] hello world
+	log.Errorf("something went %s", "wrong") // Klio: [ERROR] something went wrong
+}
+
+func Example_tags() {
+	l := log.StandardLogger().WithTags("foo", "bar")
+	l.Print("tagged message") // Klio: [INFO][FOO][BAR] tagged message
+}
+
+func Example_stderr() {
+	l := log.ErrorLogger().WithLevel(log.WarnLevel)
+	l.Print("warning") // Klio: [WARN] warning
+}
+
+func Example_custom() {
+	var b bytes.Buffer
+	var l *log.Logger
+
+	l = log.New(&b)                   // Logger can write to any io.Writer
+	l = l.WithTags("foo", "bar")      // Klio prepends tags to log lines
+	l = l.WithLevel(log.VerboseLevel) // WithLevel and WithTags return new logger instead of modyfing the original one
+
+	l.Print("hello world")
+	l.Printf("hello %s", "world")
+
+	os.Stdout.Write(b.Bytes()) // Klio reads only from stdout and stderr, so after all you need to write your logs there
+}
+
 func TestParseLevel(t *testing.T) {
 	var l log.Level
 	var ok bool
