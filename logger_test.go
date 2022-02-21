@@ -2,6 +2,7 @@ package logger_test
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"testing"
 
@@ -182,6 +183,22 @@ func TestErrorLogger(t *testing.T) {
 	assert.Equal(t, os.Stderr, l.Output())
 	assert.Equal(t, log.Level("error"), l.Level())
 	assert.Equal(t, []string{}, l.Tags())
+}
+
+func TestWriter(t *testing.T) {
+	var b bytes.Buffer
+	var w io.Writer = log.New(&b)
+
+	n, err := w.Write([]byte("foo\nbar"))
+
+	assert.NoError(t, err)
+	assert.Equal(t, n, 7)
+	assert.Equal(
+		t,
+		"\033_klio_log_level \"info\"\033\\\033_klio_tags []\033\\foo\033_klio_reset\033\\\n"+
+			"\033_klio_log_level \"info\"\033\\\033_klio_tags []\033\\bar\033_klio_reset\033\\\n",
+		b.String(),
+	)
 }
 
 func TestConvenienceFunctions(t *testing.T) {

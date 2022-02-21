@@ -5,6 +5,8 @@
 package logger
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -140,6 +142,18 @@ func (l *Logger) Print(v ...interface{}) *Logger {
 // Printf writes log line. Arguments are handled in the manner of fmt.Printf.
 func (l *Logger) Printf(format string, v ...interface{}) *Logger {
 	return l.Print(fmt.Sprintf(format, v...))
+}
+
+// Write prints input line by line.
+func (l *Logger) Write(p []byte) (int, error) {
+	scanner := bufio.NewScanner(bytes.NewReader(p)) // Scan lines
+	for scanner.Scan() {
+		l.Print(scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
 
 // StandardLogger returns logger instance writing to the stdout. It writes using "info" level by default.
